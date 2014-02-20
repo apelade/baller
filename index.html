@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<head>
+    <title>SVG</title>
+    <meta charset="utf-8" />
+    <style>
+        line{
+            stroke:rgba(255,0,0,0.8);stroke-width:2
+        }
+    </style>
+</head>
+<body>
+    <h2>Bebop</h2>
+    <svg id="svgelem" height="800" width="800" xmlns="http://www.w3.org/2000/svg">
+
+    <line class="line" id="north" x1="0" y1="0" x2="200" y2="200" />
+    <line class="line" id="east"  x1="800" y1="0" x2="600" y2="200" />
+    <line class="line" id="south" x1="800" y1="800" x2="600" y2="600" />
+    <line class="line" id="west"  x1="0" y1="800" x2="200" y2="600" />
+    <circle id="c1" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+    <circle id="c2" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+    <circle id="c3" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+    <circle id="c4" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+    <circle id="c5" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+    <circle id="c6" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+    <circle id="c7" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+    <circle id="c8" cx="90" cy="50" r="10" fill="rgba(255,0,0,0.5)" />
+
+    <polyline id="backwall"  points="0,800 400,400 0,0 0,800"  style="stroke:rgba(255,0,0,0);stroke-width:0;fill:rgba(100,100,100,.3);"/>
+    <polyline id="frontwall"  points="0,0 800,0 800,800 0,800 0,0"  style="stroke:rgba(255,0,0,0);stroke-width:0;fill:rgba(100,100,100,.3);"/>
+    <circle id="ball" cx="120" cy="80" r="5" fill="rgb(0,80,250)" />
+
+    </svg>
+    <!--    <script type="text/javascript"  src="baller.js">-->
+    <script type="text/javascript">
+        var gLoop;
+        var ball = document.getElementById("redcircle");
+        var vectX = 20.0;
+        var vectY = 10.0;
+        var vectZ = 20.0;
+        var x = 300;
+        var y = 200;
+        var z = 400;
+        var size = 800;
+        var renderX  = x;
+        var renderY = y;
+        var radius = 50;
+        var wFactor= size/(size+z);
+        var renderRad = radius * wFactor;
+        var identityMatrix = [[1,0,0], [0,1,0], [0,0,1]];
+        var rotate = 0.0003
+        var totalRotation = 0;
+        
+        //        ball.setAttribute("r",renderRad);
+
+        var getRotation = function(){
+            totalRotation += rotate;
+//            if(totalRotation  >  1.0){
+//                totalRotation =  totalRotation  - 1.0
+//            }
+            return totalRotation;
+        }
+        
+        var ball = document.getElementById("ball");
+
+
+        var multiplyMatrices = function(a,b){
+            var result = [];
+            if(a[0].length == b.length){
+                
+                for(var r=0;r<a.length; r++){
+                    result[r] = [];
+                    for(var c=0;c<b[0].length;c++){
+                        result[r][c] = 0;
+                        for(var z=0;z<a[0].length;z++){
+                            // console.log("a["+r+"]["+z+"] * b["+z+"]["+c+"]");
+                            result[r][c] += a[r][z] * b[z][c];
+                        }
+                    }
+                }
+            }
+            else{
+                result =  "multiplyMatrices():Invalid matrix argument.";
+            }
+            return result;
+        }
+        
+        // axisVal is value on x or y axis
+        // zVal is value on z axis.
+        var screenOffset = function(axisVal, zVal){
+            // given screen size of  800
+            // given screen depth of 800, and subject distance of 800 + depth
+            // Bx = Ax * (Bz/Az) =
+            // convert axisVal to distance from center
+            var Ax = axisVal - (size/2);
+            var Bz = 800.0;
+            var Az = Bz + zVal;
+            var Bx  = Ax  * (Bz/Az);
+            return Bx;
+        }
+        
+        var to2d = function(ptx,pty,ptz){
+            //return [size/2+screenOffset(tx,tz),(size/2)+screenOffset(ty,tz)];
+            var pt3d = [[ptx],[pty],[ptz]];
+            var identity = [[1, 0, 0],[0, 1, 0],[0, 0, 1]];
+            var rot  = getRotation();
+            var rotation =[
+                [Math.cos(rot),-(Math.sin(rot)),0],
+                [Math.sin(rot), Math.cos(rot), 0],
+                [0,0,1]
+            ];
+            
+            var newPt = multiplyMatrices(rotation,pt3d);
+            return [size/2+screenOffset(newPt[0][0],newPt[2][0]),(size/2)+screenOffset(newPt[1][0],newPt[2][0])];
+        }        
+       
+    
+        var bounce = function(pos, vect){
+            if (pos+vect+radius > size){
+                pos = (size - radius) - ((pos+vect+radius)-size);
+                vect = vect * -1.0;
+            }
+            if (pos+vect-radius < 0){
+                vect = vect * -1.0;
+                pos = Math.abs(pos+vect);
+            }
+
+            return [pos,vect];
+        }
+        
+   
+        
+        var GameLoop = function(){
+                    var szAmt = size;
+        var ch1 = to2d(0,0,0);
+        var ch2 = to2d(szAmt,0,0);
+        var ch3 = to2d(szAmt,szAmt,0);
+        var ch4 = to2d(0,szAmt,0);
+        var ch5 = to2d(0,0,szAmt);
+        var ch6 = to2d(szAmt,0,szAmt);
+        var ch7 = to2d(szAmt,szAmt,szAmt);
+        var ch8 = to2d(0,szAmt,szAmt);
+        
+        document.getElementById("c1").setAttribute("cx",ch1[0]);
+        document.getElementById("c1").setAttribute("cy",ch1[1]);
+        
+        document.getElementById("c2").setAttribute("cx",ch2[0]);
+        document.getElementById("c2").setAttribute("cy",ch2[1]);
+
+        document.getElementById("c3").setAttribute("cx",ch3[0]);
+        document.getElementById("c3").setAttribute("cy",ch3[1]);
+        
+        document.getElementById("c4").setAttribute("cx",ch4[0]);
+        document.getElementById("c4").setAttribute("cy",ch4[1]);        
+     
+        document.getElementById("c5").setAttribute("cx",ch5[0]);
+        document.getElementById("c5").setAttribute("cy",ch5[1]);
+        
+        document.getElementById("c6").setAttribute("cx",ch6[0]);
+        document.getElementById("c6").setAttribute("cy",ch6[1]);
+
+        document.getElementById("c7").setAttribute("cx",ch7[0]);
+        document.getElementById("c7").setAttribute("cy",ch7[1]);
+        
+        document.getElementById("c8").setAttribute("cx",ch8[0]);
+        document.getElementById("c8").setAttribute("cy",ch8[1]);
+        
+        var north = document.getElementById("north");
+        north.setAttribute("x1",ch1[0]);
+        north.setAttribute("y1",ch1[1]);
+        north.setAttribute("x2",ch5[0]);
+        north.setAttribute("y2",ch5[1]);
+ 
+        var east = document.getElementById("east");
+        east.setAttribute("x1",ch2[0]);
+        east.setAttribute("y1",ch2[1]);
+        east.setAttribute("x2",ch6[0]);
+        east.setAttribute("y2",ch6[1]);
+    
+        var south = document.getElementById("south");
+        south.setAttribute("x1",ch3[0]);
+        south.setAttribute("y1",ch3[1]);
+        south.setAttribute("x2",ch7[0]);
+        south.setAttribute("y2",ch7[1]);
+    
+        var west = document.getElementById("west");
+        west.setAttribute("x1",ch4[0]);
+        west.setAttribute("y1",ch4[1]);
+        west.setAttribute("x2",ch8[0]);
+        west.setAttribute("y2",ch8[1]);
+    
+        console.log(" check ches  " + ""+ch5+" "+ch6+" "+ch7+" "+ch8);
+        backwall.setAttribute("points",""+ch5+" "+ch6+" "+ch7+" "+ch8);
+        frontwall.setAttribute("points",""+ch1+" "+ch2+" "+ch3+" "+ch4);
+//        document.getElementById("svgelem").setAttribute("width", ch3[0] );
+//        document.getElementById("svgelem").setAttribute("height", ch3[1] );
+
+            //check collisions
+            //update positions
+            if(x+vectX+radius > size || (x+vectX)-radius < 0){
+                var xboth = bounce(x, vectX);
+                x = xboth[0];
+                vectX = xboth[1];
+            }else{
+                x = x + vectX;
+            }
+            if(y+vectY+radius > size || (y+vectY)-radius < 0){
+                var yboth = bounce(y, vectY);
+                y = yboth[0];
+                vectY = yboth[1];
+            }else{
+                y = y + vectY;
+            }
+            if(z+vectZ+radius > size || (z+vectZ)-radius < 0){
+                var zboth = bounce(z, vectZ);
+                z = zboth[0];
+                vectZ = zboth[1];
+            }else{
+                z = z + vectZ;
+            }
+            //            console.log("XYZ: " + x,y,z);
+            
+            var renderPt = to2d(x,y,z);
+
+            var closeness  = ((800-z)/800);
+            var bright = 255 -(Math.round(closeness * 100)+155);
+            renderRad = bright; 
+            wFactor= size/(size+z);
+            renderRad = radius * wFactor
+            // radial gradient?
+            // set result
+            ball.setAttribute("r", renderRad);
+            ball.setAttribute("cx", renderPt[0]);
+            ball.setAttribute("cy", renderPt[1]);
+
+            ball.setAttribute("fill", "rgb("+190+","+bright+","+bright+")");
+
+            gLoop = setTimeout(GameLoop, 1000 / 50);  
+        }
+        GameLoop();
+    </script>
+</body>
+</html>
